@@ -1,0 +1,15 @@
+*.csv
+*.out
+*.log
+*.pdf
+*.html
+*.pkg
+.DS_Store
+__pycache__/
+*.pyc
+dist/
+*.egg-info/
+.env
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/

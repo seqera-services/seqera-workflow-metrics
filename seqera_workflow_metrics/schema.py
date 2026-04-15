@@ -1,0 +1,36 @@
+"""CSV output schema definition — the data contract between public and internal repos."""
+
+SCHEMA_VERSION = "1.0"
+
+SCHEMA_COLUMNS = [
+    "workflow_id",
+    "workflow_name",
+    "project_name",
+    "repository",
+    "status",
+    "user_name",
+    "start_time",
+    "end_time",
+    "duration_ms",
+    "total_cpus",
+    "cpu_time_ms",
+    "cpu_efficiency",
+    "read_bytes",
+    "write_bytes",
+    "calculated_cpu_hours",
+    "calculated_total_runtime_ms",
+    "cached_tasks_detected",
+    "non_cached_tasks",
+    "total_data_processed_bytes",
+    "data_processed_mb",
+    "cpus_per_mb",
+    "failed_process",
+    "error_cause",
+    "exit_code",
+    "tasks_succeeded",
+    "tasks_failed",
+    "tasks_cached_count",
+    "tasks_ignored",
+    "organization_name",
+    "workspace_name",
+]
