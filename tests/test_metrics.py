@@ -1,10 +1,11 @@
 import pytest
+
+from seqera_workflow_metrics.config import RunConfig
 from seqera_workflow_metrics.metrics import (
     calculate_cpu_usage_from_tasks,
-    parse_error_report,
     extract_workflow_metrics,
+    parse_error_report,
 )
-from seqera_workflow_metrics.config import RunConfig
 
 
 class TestCalculateCpuUsage:
@@ -127,11 +128,18 @@ class TestExtractWorkflowMetrics:
     def test_never_started_workflow_uses_error_cause(self):
         details = {
             "workflow": {
-                "id": "wf1", "runName": "test", "projectName": "proj",
-                "repository": "repo", "status": "FAILED", "userName": "user",
-                "start": None, "complete": None, "stats": {},
+                "id": "wf1",
+                "runName": "test",
+                "projectName": "proj",
+                "repository": "repo",
+                "status": "FAILED",
+                "userName": "user",
+                "start": None,
+                "complete": None,
+                "stats": {},
             },
-            "orgName": "org", "workspaceName": "ws",
+            "orgName": "org",
+            "workspaceName": "ws",
         }
         config = RunConfig()
         result = extract_workflow_metrics(details, config=config)
@@ -142,13 +150,19 @@ class TestExtractWorkflowMetrics:
     def test_normal_workflow_with_tasks(self):
         details = {
             "workflow": {
-                "id": "wf1", "runName": "test", "projectName": "proj",
-                "repository": "repo", "status": "SUCCEEDED", "userName": "user",
-                "start": "2025-01-15T10:00:00Z", "complete": "2025-01-15T11:00:00Z",
+                "id": "wf1",
+                "runName": "test",
+                "projectName": "proj",
+                "repository": "repo",
+                "status": "SUCCEEDED",
+                "userName": "user",
+                "start": "2025-01-15T10:00:00Z",
+                "complete": "2025-01-15T11:00:00Z",
                 "duration": 3_600_000,
                 "stats": {"succeedCount": 1, "failedCount": 0, "cachedCount": 0, "ignoredCount": 0},
             },
-            "orgName": "org", "workspaceName": "ws",
+            "orgName": "org",
+            "workspaceName": "ws",
             "progress": {
                 "workflowProgress": {"cpus": 0, "cpuTime": 0, "cpuEfficiency": 0, "readBytes": 0, "writeBytes": 0},
                 "processesProgress": [],

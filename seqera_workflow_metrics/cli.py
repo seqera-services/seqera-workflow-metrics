@@ -3,7 +3,7 @@ import logging
 import os
 import sys
 from datetime import date, datetime
-from typing import Any, Optional
+from typing import Any
 
 import pandas as pd
 import typer
@@ -14,9 +14,7 @@ from seqera_workflow_metrics.metrics import MS_TO_HOURS, extract_workflow_metric
 
 logger = logging.getLogger(__name__)
 
-app = typer.Typer(
-    help="Collect and analyze workflow metrics from Seqera Platform"
-)
+app = typer.Typer(help="Collect and analyze workflow metrics from Seqera Platform")
 
 
 def setup_logging(output_file: str, verbose: bool = False) -> None:
@@ -36,7 +34,7 @@ def get_organization_lookup(client: APIClient) -> dict[str, str]:
 
 def process_workflow(
     client: APIClient, workflow_id: str, workspace_id: str, config: RunConfig
-) -> Optional[dict[str, Any]]:
+) -> dict[str, Any] | None:
     workflow_details = client.workflow_details(workflow_id, workspace_id)
     if not workflow_details:
         logger.warning(f"Could not retrieve data for workflow {workflow_id}")
@@ -93,7 +91,7 @@ def process_organization(
     min_time: str,
     max_time: str,
     config: RunConfig,
-    workspace_id: Optional[str] = None,
+    workspace_id: str | None = None,
     **filters: Any,
 ) -> list[dict[str, Any]]:
     workspaces_response = client.workspaces(org_id)
@@ -111,9 +109,7 @@ def process_organization(
 
     all_summaries: list[dict[str, Any]] = []
     for workspace in workspaces:
-        summaries = process_workspace_workflows(
-            client, workspace, min_time, max_time, config, **filters
-        )
+        summaries = process_workspace_workflows(client, workspace, min_time, max_time, config, **filters)
         all_summaries.extend(summaries)
     return all_summaries
 
@@ -145,8 +141,11 @@ def convert_raw_workflow_data(
         "workspaceName": "Unknown",
         "progress": {
             "workflowProgress": {
-                "cpus": 0, "cpuTime": 0, "cpuEfficiency": 0,
-                "readBytes": 0, "writeBytes": 0,
+                "cpus": 0,
+                "cpuTime": 0,
+                "cpuEfficiency": 0,
+                "readBytes": 0,
+                "writeBytes": 0,
             },
             "processesProgress": [],
         },
@@ -155,16 +154,12 @@ def convert_raw_workflow_data(
     return workflow_details, tasks_response
 
 
-def process_workflow_from_files(
-    workflow_file: str, tasks_file: str, config: RunConfig
-) -> Optional[dict[str, Any]]:
+def process_workflow_from_files(workflow_file: str, tasks_file: str, config: RunConfig) -> dict[str, Any] | None:
     logger.info(f"Processing workflow data from files: {workflow_file}, {tasks_file}")
     raw_data = load_workflow_data_from_files(workflow_file, tasks_file)
     if not raw_data:
         return None
-    workflow_details, tasks_response = convert_raw_workflow_data(
-        raw_data["workflow"], raw_data["tasks"]
-    )
+    workflow_details, tasks_response = convert_raw_workflow_data(raw_data["workflow"], raw_data["tasks"])
     summary = extract_workflow_metrics(workflow_details, tasks_response, config=config)
     logger.info(f"Collected metrics for workflow {raw_data['workflow'].get('id', 'unknown')}")
     return summary
@@ -235,21 +230,19 @@ def display_summary_statistics(df_summary: pd.DataFrame) -> None:
     print("\nMetrics by Workspace:")
     workspace_stats = calculate_workspace_stats(df_summary)
     status_by_workspace = (
-        df_summary.groupby(["organization_name", "workspace_name", "status"])
-        .size()
-        .unstack(fill_value=0)
-        .reset_index()
+        df_summary.groupby(["organization_name", "workspace_name", "status"]).size().unstack(fill_value=0).reset_index()
     )
-    workspace_stats = workspace_stats.merge(
-        status_by_workspace, on=["organization_name", "workspace_name"], how="left"
-    )
+    workspace_stats = workspace_stats.merge(status_by_workspace, on=["organization_name", "workspace_name"], how="left")
 
     for _, row in workspace_stats.iterrows():
         failed_runs = int(row.get("FAILED", 0))
         succeeded_runs = int(row.get("SUCCEEDED", 0))
         cancelled_runs = int(row.get("CANCELLED", 0))
         print(f"\nOrg: {row['organization_name']} - Workspace: {row['workspace_name']}")
-        print(f"  Workflows: {row['workflow_id']} (succeeded: {succeeded_runs}, failed: {failed_runs}, cancelled: {cancelled_runs})")
+        print(
+            f"  Workflows: {row['workflow_id']} "
+            f"(succeeded: {succeeded_runs}, failed: {failed_runs}, cancelled: {cancelled_runs})"
+        )
         print(f"  Total CPUs: {row['total_cpus']:,.2f}")
         print(f"  Calculated CPU hours: {row['calculated_cpu_hours']:,.2f}")
         print(f"  Cached tasks: {row['cached_tasks_detected']:,.0f}")
@@ -262,8 +255,7 @@ def display_summary_statistics(df_summary: pd.DataFrame) -> None:
         print(f"  Avg duration: {row['duration_ms'] / MS_TO_HOURS:.2f} hours")
 
     failed_workflows = df_summary[
-        (df_summary["status"].isin(["FAILED", "ABORTED", "CANCELLED"]))
-        & (df_summary["error_cause"] != "")
+        (df_summary["status"].isin(["FAILED", "ABORTED", "CANCELLED"])) & (df_summary["error_cause"] != "")
     ]
     if not failed_workflows.empty:
         print(f"\nError Details ({len(failed_workflows)} failed/aborted workflows):")
@@ -289,53 +281,85 @@ def save_metrics_to_files(workflow_summaries: list[dict[str, Any]], output: str)
 
 @app.command()
 def main(
-    org_name: Optional[str] = typer.Option(
-        None, "--org-name", "-o",
+    org_name: str | None = typer.Option(
+        None,
+        "--org-name",
+        "-o",
         help="Organization name to analyze (required unless using workflow IDs or file input)",
     ),
-    from_date: Optional[datetime] = typer.Option(
-        None, "--from",
+    from_date: datetime | None = typer.Option(
+        None,
+        "--from",
         help="Start date (YYYY-MM-DD) (required unless using workflow IDs or file input)",
     ),
-    to_date: Optional[datetime] = typer.Option(None, "--to", help="End date (YYYY-MM-DD)"),
-    pipeline: Optional[str] = typer.Option(
-        None, "--pipeline", "-p", help="Filter by pipeline name",
+    to_date: datetime | None = typer.Option(None, "--to", help="End date (YYYY-MM-DD)"),
+    pipeline: str | None = typer.Option(
+        None,
+        "--pipeline",
+        "-p",
+        help="Filter by pipeline name",
     ),
-    repository: Optional[str] = typer.Option(
-        None, "--repository", "-r", help="Filter by repository URL",
+    repository: str | None = typer.Option(
+        None,
+        "--repository",
+        "-r",
+        help="Filter by repository URL",
     ),
     output: str = typer.Option("workflow_metrics.csv", "--output", help="Output CSV file path"),
-    workspace_id: Optional[str] = typer.Option(
-        None, "--workspace-id", "-w", help="Specific workspace ID",
+    workspace_id: str | None = typer.Option(
+        None,
+        "--workspace-id",
+        "-w",
+        help="Specific workspace ID",
     ),
-    status: Optional[str] = typer.Option(
-        None, "--status", "-s", help="Filter by workflow status",
+    status: str | None = typer.Option(
+        None,
+        "--status",
+        "-s",
+        help="Filter by workflow status",
     ),
-    endpoint: Optional[str] = typer.Option(
-        None, "--endpoint", "-e", help="Platform API endpoint URL",
+    endpoint: str | None = typer.Option(
+        None,
+        "--endpoint",
+        "-e",
+        help="Platform API endpoint URL",
     ),
-    workflow_ids: Optional[str] = typer.Option(
-        None, "--workflow-ids", "-i", help="Workflow IDs (comma or space separated)",
+    workflow_ids: str | None = typer.Option(
+        None,
+        "--workflow-ids",
+        "-i",
+        help="Workflow IDs (comma or space separated)",
     ),
-    workflow_file: Optional[str] = typer.Option(
-        None, "--workflow-file", help="Path to workflow.json file",
+    workflow_file: str | None = typer.Option(
+        None,
+        "--workflow-file",
+        help="Path to workflow.json file",
     ),
-    tasks_file: Optional[str] = typer.Option(
-        None, "--tasks-file", help="Path to workflow-tasks.json file",
+    tasks_file: str | None = typer.Option(
+        None,
+        "--tasks-file",
+        help="Path to workflow-tasks.json file",
     ),
     use_start_complete_time: bool = typer.Option(
-        False, "--use-start-complete-time",
+        False,
+        "--use-start-complete-time",
         help="Use start-complete duration instead of realtime for CPU calculations",
     ),
     exclude_failed_tasks: bool = typer.Option(
-        False, "--exclude-failed-tasks",
+        False,
+        "--exclude-failed-tasks",
         help="Exclude FAILED and ABORTED tasks from CPU calculations",
     ),
     task_details: bool = typer.Option(
-        False, "--task-details", help="Show detailed task-level calculations",
+        False,
+        "--task-details",
+        help="Show detailed task-level calculations",
     ),
     verbose: bool = typer.Option(
-        False, "--verbose", "-v", help="Enable debug logging",
+        False,
+        "--verbose",
+        "-v",
+        help="Enable debug logging",
     ),
 ) -> None:
     """Collect and analyze workflow metrics from Seqera Platform.
@@ -402,19 +426,19 @@ def main(
 
             logger.info(f"Found organization ID {org_id} for '{org_name}'")
 
-            min_time = (
-                datetime.combine(from_date.date(), datetime.min.time())
-                .isoformat(timespec="milliseconds") + "Z"
-            )
-            max_time = (
-                datetime.combine(to_date.date(), datetime.max.time())
-                .isoformat(timespec="milliseconds") + "Z"
-            )
+            min_time = datetime.combine(from_date.date(), datetime.min.time()).isoformat(timespec="milliseconds") + "Z"
+            max_time = datetime.combine(to_date.date(), datetime.max.time()).isoformat(timespec="milliseconds") + "Z"
 
             workflow_summaries = process_organization(
-                client, org_id, min_time, max_time, config,
-                workspace_id=workspace_id, pipeline=pipeline,
-                repository=repository, status=status,
+                client,
+                org_id,
+                min_time,
+                max_time,
+                config,
+                workspace_id=workspace_id,
+                pipeline=pipeline,
+                repository=repository,
+                status=status,
             )
 
     save_metrics_to_files(workflow_summaries, output)

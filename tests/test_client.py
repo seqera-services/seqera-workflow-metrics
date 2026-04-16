@@ -1,5 +1,7 @@
-import pytest
 from unittest.mock import patch
+
+import pytest
+
 from seqera_workflow_metrics.client import APIClient
 
 

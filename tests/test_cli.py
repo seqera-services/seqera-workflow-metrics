@@ -1,4 +1,5 @@
 from typer.testing import CliRunner
+
 from seqera_workflow_metrics.cli import app
 
 runner = CliRunner()

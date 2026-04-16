@@ -1,7 +1,7 @@
 import logging
 import re
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from seqera_workflow_metrics.config import RunConfig
 
@@ -98,23 +98,42 @@ def parse_error_report(error_report: str) -> dict[str, str]:
 
 def _build_default_metrics() -> dict[str, Any]:
     return {
-        "workflow_id": None, "workflow_name": None, "project_name": None,
-        "repository": None, "status": None, "user_name": None,
-        "start_time": None, "end_time": None, "duration_ms": 0,
-        "total_cpus": 0, "cpu_time_ms": 0, "cpu_efficiency": 0,
-        "read_bytes": 0, "write_bytes": 0,
-        "calculated_cpu_hours": 0, "calculated_total_runtime_ms": 0,
-        "cached_tasks_detected": 0, "non_cached_tasks": 0,
-        "total_data_processed_bytes": 0, "data_processed_mb": 0, "cpus_per_mb": 0,
-        "failed_process": "", "error_cause": "", "exit_code": "",
-        "tasks_succeeded": 0, "tasks_failed": 0, "tasks_cached_count": 0, "tasks_ignored": 0,
-        "organization_name": "Unknown", "workspace_name": "Unknown",
+        "workflow_id": None,
+        "workflow_name": None,
+        "project_name": None,
+        "repository": None,
+        "status": None,
+        "user_name": None,
+        "start_time": None,
+        "end_time": None,
+        "duration_ms": 0,
+        "total_cpus": 0,
+        "cpu_time_ms": 0,
+        "cpu_efficiency": 0,
+        "read_bytes": 0,
+        "write_bytes": 0,
+        "calculated_cpu_hours": 0,
+        "calculated_total_runtime_ms": 0,
+        "cached_tasks_detected": 0,
+        "non_cached_tasks": 0,
+        "total_data_processed_bytes": 0,
+        "data_processed_mb": 0,
+        "cpus_per_mb": 0,
+        "failed_process": "",
+        "error_cause": "",
+        "exit_code": "",
+        "tasks_succeeded": 0,
+        "tasks_failed": 0,
+        "tasks_cached_count": 0,
+        "tasks_ignored": 0,
+        "organization_name": "Unknown",
+        "workspace_name": "Unknown",
     }
 
 
 def extract_workflow_metrics(
     workflow_details: dict[str, Any],
-    workflow_tasks: Optional[dict[str, Any]] = None,
+    workflow_tasks: dict[str, Any] | None = None,
     *,
     config: RunConfig = RunConfig(),
 ) -> dict[str, Any]:
@@ -168,18 +187,14 @@ def extract_workflow_metrics(
 
     if workflow_tasks:
         logger.debug(f"Calculating CPU from task data for workflow {workflow.get('id')}")
-        task_cpu = calculate_cpu_usage_from_tasks(
-            workflow_tasks, workflow.get("status", "SUCCEEDED"), config
-        )
+        task_cpu = calculate_cpu_usage_from_tasks(workflow_tasks, workflow.get("status", "SUCCEEDED"), config)
         metrics["total_cpus"] = task_cpu["calculated_total_cpus"]
         metrics["cpu_time_ms"] = task_cpu["calculated_cpu_hours"] * MS_TO_HOURS
         metrics["calculated_cpu_hours"] = task_cpu["calculated_cpu_hours"]
         metrics["calculated_total_runtime_ms"] = task_cpu["calculated_total_runtime_ms"]
         metrics["non_cached_tasks"] = task_cpu["non_cached_tasks"]
         tasks_list = workflow_tasks.get("tasks", [])
-        metrics["cached_tasks_detected"] = sum(
-            1 for t in tasks_list if t.get("task", {}).get("status") == "CACHED"
-        )
+        metrics["cached_tasks_detected"] = sum(1 for t in tasks_list if t.get("task", {}).get("status") == "CACHED")
     else:
         logger.debug(f"No task data for workflow {workflow.get('id')}, using workflow-level metrics")
         metrics["calculated_cpu_hours"] = metrics["cpu_time_ms"] / MS_TO_HOURS

@@ -1,5 +1,5 @@
 """Integration test: full pipeline from mock data to schema-validated output."""
-import pytest
+
 from seqera_workflow_metrics.config import RunConfig
 from seqera_workflow_metrics.metrics import extract_workflow_metrics
 from seqera_workflow_metrics.schema import SCHEMA_COLUMNS
@@ -25,7 +25,11 @@ def test_config_flags_affect_output(sample_workflow_details, sample_tasks_with_f
     config_include = RunConfig(exclude_failed_tasks=False)
     config_exclude = RunConfig(exclude_failed_tasks=True)
 
-    result_include = extract_workflow_metrics(sample_workflow_details, sample_tasks_with_failures, config=config_include)
-    result_exclude = extract_workflow_metrics(sample_workflow_details, sample_tasks_with_failures, config=config_exclude)
+    result_include = extract_workflow_metrics(
+        sample_workflow_details, sample_tasks_with_failures, config=config_include
+    )
+    result_exclude = extract_workflow_metrics(
+        sample_workflow_details, sample_tasks_with_failures, config=config_exclude
+    )
 
     assert result_exclude["calculated_cpu_hours"] < result_include["calculated_cpu_hours"]

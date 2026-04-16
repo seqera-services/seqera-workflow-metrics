@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Optional
+from typing import Any
 
 import requests
 
@@ -58,9 +58,7 @@ class APIClient:
     def workspaces(self, org_id: str) -> dict[str, Any]:
         return self.get(f"orgs/{org_id}/workspaces", {})
 
-    def _build_search_query(
-        self, min_time: str, max_time: str, status: Optional[str] = None
-    ) -> str:
+    def _build_search_query(self, min_time: str, max_time: str, status: str | None = None) -> str:
         query = f"after:{min_time} before:{max_time}"
         if status:
             query += f" status:{status}"
@@ -69,13 +67,14 @@ class APIClient:
     def _filter_workflows_by_criteria(
         self,
         workflows: list[dict[str, Any]],
-        pipeline: Optional[str] = None,
-        repository: Optional[str] = None,
+        pipeline: str | None = None,
+        repository: str | None = None,
     ) -> list[dict[str, Any]]:
         if not (pipeline or repository):
             return workflows
         return [
-            wf for wf in workflows
+            wf
+            for wf in workflows
             if (pipeline and wf.get("workflow", {}).get("projectName") == pipeline)
             or (repository and wf.get("workflow", {}).get("repository") == repository)
         ]
@@ -85,9 +84,9 @@ class APIClient:
         workspace_id: str,
         min_time: str,
         max_time: str,
-        pipeline: Optional[str] = None,
-        repository: Optional[str] = None,
-        status: Optional[str] = None,
+        pipeline: str | None = None,
+        repository: str | None = None,
+        status: str | None = None,
     ) -> list[dict[str, Any]]:
         search_query = self._build_search_query(min_time, max_time, status)
         params = {"search": search_query, "workspaceId": workspace_id}
@@ -100,7 +99,5 @@ class APIClient:
 
     def workflow_tasks(self, workflow_id: str, workspace_id: str) -> dict[str, Any]:
         params = {"workspaceId": workspace_id}
-        all_tasks = self._paginate(
-            f"workflow/{workflow_id}/tasks", params, "tasks", "total"
-        )
+        all_tasks = self._paginate(f"workflow/{workflow_id}/tasks", params, "tasks", "total")
         return {"tasks": all_tasks, "total": len(all_tasks)}
