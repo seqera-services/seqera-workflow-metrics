@@ -128,6 +128,7 @@ Run `seqera-workflow-metrics --help` for the full reference. Key options:
 | `--use-start-complete-time` |       | Use wall-clock (start→complete) duration instead of `realtime` per task     |
 | `--exclude-failed-tasks`    |       | Exclude `FAILED` and `ABORTED` tasks from CPU calculations                  |
 | `--task-details`            |       | Print per-task calculation details to the log                               |
+| `--summarize`               |       | Write an additional CSV with CPU hours grouped by user, month, and workspace |
 | `--verbose`, `-v`           | `-v`  | Enable DEBUG-level logging (more detail than `--task-details`)              |
 
 ---
@@ -143,6 +144,32 @@ After collection, the tool prints a summary to stdout including:
 - Total and average CPU hours, data processed, CPU efficiency
 - Per-workspace breakdown
 - Error details for failed/aborted workflows (up to 10)
+
+### User summary CSV (`--summarize`)
+
+Pass `--summarize` to write a second CSV alongside the main output (e.g. `workflow_metrics_user_summary.csv`). It aggregates CPU hours per user, per calendar month, per workspace — useful for cost attribution across teams or environments.
+
+```bash
+seqera-workflow-metrics \
+  --org-name "MyOrg" \
+  --from 2024-01-01 \
+  --to 2024-03-31 \
+  --summarize
+# produces: workflow_metrics.csv + workflow_metrics_user_summary.csv
+```
+
+| Column           | Description                                          |
+|------------------|------------------------------------------------------|
+| `organization_name` | Platform organization name                        |
+| `workspace_name` | Platform workspace name                              |
+| `user_name`      | Platform user who launched the workflows             |
+| `month`          | Calendar month (`YYYY-MM`), or `unknown` for workflows with no timestamp |
+| `workflow_count` | Number of workflow runs in that group                |
+| `cpu_hours`      | Total calculated CPU hours                           |
+| `tasks_succeeded`| Total tasks succeeded                                |
+| `tasks_failed`   | Total tasks failed                                   |
+
+The totals in this file are guaranteed to reconcile with the main CSV — every workflow row is represented, including runs that failed before launch (which appear under `month=unknown` with `cpu_hours=0`).
 
 ### Log file
 
