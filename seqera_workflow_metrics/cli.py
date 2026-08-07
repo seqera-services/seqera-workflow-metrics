@@ -193,12 +193,16 @@ def calculate_workspace_stats(df_summary: pd.DataFrame) -> pd.DataFrame:
 
 
 def summarize_by_user_month_workspace(df_summary: pd.DataFrame, output: str) -> None:
+    from pathlib import Path
+
     df = df_summary.copy()
     # Workflows that never started have null start_time; fall back to end_time, then "unknown"
-    timestamp = pd.to_datetime(df["start_time"]).fillna(pd.to_datetime(df["end_time"]))
-    df["month"] = timestamp.dt.to_period("M").astype(str).where(timestamp.notna(), other="unknown")
+    timestamp = pd.to_datetime(df["start_time"], utc=True).fillna(pd.to_datetime(df["end_time"], utc=True))
+    df["month"] = (
+        timestamp.dt.tz_convert(None).dt.to_period("M").astype(str).where(timestamp.notna(), other="unknown")
+    )
     summary = (
-        df.groupby(["organization_name", "workspace_name", "user_name", "month"])
+        df.groupby(["organization_name", "workspace_name", "user_name", "month"], dropna=False)
         .agg(
             workflow_count=("workflow_id", "count"),
             cpu_hours=("calculated_cpu_hours", "sum"),
@@ -206,11 +210,14 @@ def summarize_by_user_month_workspace(df_summary: pd.DataFrame, output: str) -> 
             tasks_failed=("tasks_failed", "sum"),
         )
         .reset_index()
-        .sort_values(["organization_name", "workspace_name", "month", "cpu_hours"], ascending=[True, True, True, False])
+        .sort_values(
+            ["organization_name", "workspace_name", "month", "cpu_hours", "user_name"],
+            ascending=[True, True, True, False, True],
+        )
     )
-    summary_path = output.replace(".csv", "_user_summary.csv")
+    summary_path = str(Path(output).with_stem(Path(output).stem + "_user_summary"))
     summary.to_csv(summary_path, index=False)
-    print(f"\nUser summary saved to {summary_path}")
+    logger.info(f"User summary saved to {summary_path}")
     print(summary.to_string(index=False))
 
 

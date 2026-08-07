@@ -53,7 +53,8 @@ class APIClient:
         return all_items
 
     def organizations(self) -> dict[str, Any]:
-        return self.get("orgs", {})
+        items = self._paginate("orgs", {}, "organizations", "totalSize")
+        return {"organizations": items}
 
     def workspaces(self, org_id: str) -> dict[str, Any]:
         items = self._paginate(f"orgs/{org_id}/workspaces", {}, "workspaces", "totalSize")
