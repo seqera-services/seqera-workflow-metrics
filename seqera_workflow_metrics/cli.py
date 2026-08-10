@@ -192,6 +192,35 @@ def calculate_workspace_stats(df_summary: pd.DataFrame) -> pd.DataFrame:
     return df_summary.groupby(["organization_name", "workspace_name"]).agg(agg_dict).reset_index()
 
 
+def summarize_by_user_month_workspace(df_summary: pd.DataFrame, output: str) -> None:
+    from pathlib import Path
+
+    df = df_summary.copy()
+    # Workflows that never started have null start_time; fall back to end_time, then "unknown"
+    timestamp = pd.to_datetime(df["start_time"], utc=True).fillna(pd.to_datetime(df["end_time"], utc=True))
+    df["month"] = (
+        timestamp.dt.tz_convert(None).dt.to_period("M").astype(str).where(timestamp.notna(), other="unknown")
+    )
+    summary = (
+        df.groupby(["organization_name", "workspace_name", "user_name", "month"], dropna=False)
+        .agg(
+            workflow_count=("workflow_id", "count"),
+            cpu_hours=("calculated_cpu_hours", "sum"),
+            tasks_succeeded=("tasks_succeeded", "sum"),
+            tasks_failed=("tasks_failed", "sum"),
+        )
+        .reset_index()
+        .sort_values(
+            ["organization_name", "workspace_name", "month", "cpu_hours", "user_name"],
+            ascending=[True, True, True, False, True],
+        )
+    )
+    summary_path = str(Path(output).with_stem(Path(output).stem + "_user_summary"))
+    summary.to_csv(summary_path, index=False)
+    logger.info(f"User summary saved to {summary_path}")
+    print(summary.to_string(index=False))
+
+
 def display_summary_statistics(df_summary: pd.DataFrame) -> None:
     total_workflows = len(df_summary)
     workflows_with_cached_tasks = len(df_summary[df_summary["cached_tasks_detected"] > 0])
@@ -268,7 +297,7 @@ def display_summary_statistics(df_summary: pd.DataFrame) -> None:
                 print(f"    Exit code: {row['exit_code']}")
 
 
-def save_metrics_to_files(workflow_summaries: list[dict[str, Any]], output: str) -> None:
+def save_metrics_to_files(workflow_summaries: list[dict[str, Any]], output: str, summarize: bool = False) -> None:
     if not workflow_summaries:
         logger.warning("No workflow data collected")
         print("No workflow data collected. Check your filters or date range.")
@@ -277,6 +306,8 @@ def save_metrics_to_files(workflow_summaries: list[dict[str, Any]], output: str)
     df_summary.to_csv(output, index=False)
     logger.info(f"Workflow metrics saved to {output}")
     display_summary_statistics(df_summary)
+    if summarize:
+        summarize_by_user_month_workspace(df_summary, output)
 
 
 @app.command()
@@ -361,6 +392,11 @@ def main(
         "-v",
         help="Enable debug logging",
     ),
+    summarize: bool = typer.Option(
+        False,
+        "--summarize",
+        help="Output an additional CSV with CPU hours grouped by user, month, and workspace",
+    ),
 ) -> None:
     """Collect and analyze workflow metrics from Seqera Platform.
 
@@ -441,4 +477,4 @@ def main(
                 status=status,
             )
 
-    save_metrics_to_files(workflow_summaries, output)
+    save_metrics_to_files(workflow_summaries, output, summarize=summarize)

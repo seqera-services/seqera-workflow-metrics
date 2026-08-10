@@ -74,6 +74,26 @@ class TestListWorkflows:
             assert len(result) == 2
 
 
+class TestWorkspaces:
+    def test_uses_paginate_with_correct_keys(self, client):
+        """workspaces() paginates using 'workspaces' items key and 'totalSize' total key."""
+        with patch.object(client, "_paginate") as mock_paginate:
+            mock_paginate.return_value = [{"id": 1, "name": "ws1"}, {"id": 2, "name": "ws2"}]
+            result = client.workspaces("org123")
+            mock_paginate.assert_called_once_with("orgs/org123/workspaces", {}, "workspaces", "totalSize")
+            assert result == {"workspaces": [{"id": 1, "name": "ws1"}, {"id": 2, "name": "ws2"}]}
+
+
+class TestOrganizations:
+    def test_uses_paginate_with_correct_keys(self, client):
+        """organizations() paginates using 'organizations' items key and 'totalSize' total key."""
+        with patch.object(client, "_paginate") as mock_paginate:
+            mock_paginate.return_value = [{"orgId": 1, "name": "org1"}]
+            result = client.organizations()
+            mock_paginate.assert_called_once_with("orgs", {}, "organizations", "totalSize")
+            assert result == {"organizations": [{"orgId": 1, "name": "org1"}]}
+
+
 class TestWorkflowTasks:
     def test_returns_all_tasks(self, client):
         """workflow_tasks returns all paginated tasks."""

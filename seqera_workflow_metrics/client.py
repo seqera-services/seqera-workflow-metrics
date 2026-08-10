@@ -53,10 +53,12 @@ class APIClient:
         return all_items
 
     def organizations(self) -> dict[str, Any]:
-        return self.get("orgs", {})
+        items = self._paginate("orgs", {}, "organizations", "totalSize")
+        return {"organizations": items}
 
     def workspaces(self, org_id: str) -> dict[str, Any]:
-        return self.get(f"orgs/{org_id}/workspaces", {})
+        items = self._paginate(f"orgs/{org_id}/workspaces", {}, "workspaces", "totalSize")
+        return {"workspaces": items}
 
     def _build_search_query(self, min_time: str, max_time: str, status: str | None = None) -> str:
         query = f"after:{min_time} before:{max_time}"
