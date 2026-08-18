@@ -18,9 +18,9 @@ class CheckpointRecord(BaseModel):
 
     @property
     def runtime_hours(self) -> float | None:
-        if not self.is_complete:
+        if self.date_saved is None:
             return None
-        delta = self.date_saved - self.date_created  # type: ignore[operator]
+        delta = self.date_saved - self.date_created
         return delta.total_seconds() / 3600
 
 
