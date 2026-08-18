@@ -24,14 +24,6 @@ class CheckpointRecord(BaseModel):
         return delta.total_seconds() / 3600
 
 
-class _StudioConfig(BaseModel):
-    cpu: int = 0
-    gpu: int = 0
-    memory: int = 0
-
-    model_config = {"populate_by_name": True}
-
-
 class StudioRecord(BaseModel):
     session_id: str = Field(alias="sessionId")
     name: str
