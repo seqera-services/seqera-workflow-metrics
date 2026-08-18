@@ -1,0 +1,16 @@
+STUDIOS_SCHEMA_COLUMNS = [
+    "studio_id",
+    "studio_name",
+    "checkpoint_id",
+    "user_name",
+    "workspace_name",
+    "organization_name",
+    "session_start",
+    "session_stop",
+    "runtime_hours",
+    "cpu_requested",
+    "cpu_hours",
+    "cpu_unresolved",
+    "month",
+    "compute_env_id",
+]
