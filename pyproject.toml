@@ -27,7 +27,9 @@ dev = [
 ]
 
 [project.scripts]
-seqera-workflow-metrics = "seqera_workflow_metrics.cli:app"
+seqera-workflow-metrics = "seqera_workflow_metrics.cli:workflows_app"
+seqera-studios-metrics = "seqera_workflow_metrics.cli:studios_app"
+seqera-platform-metrics = "seqera_workflow_metrics.cli:app"
 
 [tool.ruff]
 target-version = "py310"

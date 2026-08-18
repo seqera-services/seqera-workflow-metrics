@@ -14,7 +14,12 @@ from seqera_workflow_metrics.metrics import MS_TO_HOURS, extract_workflow_metric
 
 logger = logging.getLogger(__name__)
 
-app = typer.Typer(help="Collect and analyze workflow metrics from Seqera Platform")
+app = typer.Typer(help="Seqera Platform metrics — workflows and studios")
+workflows_app = typer.Typer(help="Collect workflow CPU metrics")
+studios_app = typer.Typer(help="Collect Studios session CPU metrics")
+
+app.add_typer(workflows_app, name="workflows")
+app.add_typer(studios_app, name="studios")
 
 
 def setup_logging(output_file: str, verbose: bool = False) -> None:
@@ -310,7 +315,7 @@ def save_metrics_to_files(workflow_summaries: list[dict[str, Any]], output: str,
         summarize_by_user_month_workspace(df_summary, output)
 
 
-@app.command()
+@workflows_app.command()
 def main(
     org_name: str | None = typer.Option(
         None,
@@ -478,3 +483,92 @@ def main(
             )
 
     save_metrics_to_files(workflow_summaries, output, summarize=summarize)
+
+
+def _print_studios_summary(df: "pd.DataFrame") -> None:
+    print("\nStudios Sessions Summary:")
+    print(f"  Total sessions: {len(df)}")
+    print(f"  Total CPU hours: {df['cpu_hours'].sum():,.2f}")
+    unresolved = df["cpu_unresolved"].sum()
+    if unresolved:
+        print(f"  Sessions with unresolved CPU (cpu=0): {int(unresolved)} "
+              f"— runtime recorded, cpu_hours=0")
+    print(f"  Total runtime hours: {df['runtime_hours'].sum():,.2f}")
+
+
+@studios_app.command()
+def studios_main(
+    org_name: str | None = typer.Option(None, "--org-name", "-o", help="Organization name (required)"),
+    from_date: datetime | None = typer.Option(None, "--from", help="Start date (YYYY-MM-DD) (required)"),
+    to_date: datetime | None = typer.Option(None, "--to", help="End date (YYYY-MM-DD)"),
+    workspace_id: str | None = typer.Option(None, "--workspace-id", "-w", help="Filter to specific workspace ID"),
+    endpoint: str | None = typer.Option(None, "--endpoint", "-e", help="Platform API endpoint URL"),
+    output: str = typer.Option("studios_metrics.csv", "--output", help="Output CSV file path"),
+    summarize: bool = typer.Option(False, "--summarize", help="Also write per-user/month summary CSV"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Enable debug logging"),
+) -> None:
+    """Collect Studios session CPU metrics from Seqera Platform."""
+    setup_logging(output, verbose)
+    base_url = endpoint or os.getenv("TOWER_API_ENDPOINT", "https://api.cloud.seqera.io")
+    api_key = os.getenv("TOWER_ACCESS_TOKEN")
+    if not api_key:
+        logger.error("TOWER_ACCESS_TOKEN environment variable is not set")
+        sys.exit(1)
+
+    client = APIClient(base_url, api_key)
+
+    if not org_name:
+        logger.error("--org-name is required")
+        sys.exit(1)
+    if not from_date:
+        logger.error("--from is required")
+        sys.exit(1)
+
+    to_date = to_date or datetime.combine(date.today(), datetime.max.time())
+    min_dt = datetime.combine(from_date.date(), datetime.min.time())
+    max_dt = datetime.combine(to_date.date(), datetime.max.time())
+
+    org_lookup = get_organization_lookup(client)
+    org_id = org_lookup.get(org_name)
+    if not org_id:
+        logger.error(f"Organization '{org_name}' not found")
+        sys.exit(1)
+
+    workspaces_resp = client.workspaces(org_id)
+    workspaces = workspaces_resp.get("workspaces", [])
+    if workspace_id:
+        workspaces = [ws for ws in workspaces if str(ws.get("id")) == str(workspace_id)]
+
+    from seqera_workflow_metrics.studios.metrics import (
+        extract_studio_session_metrics,
+        summarize_studios_by_user_month,
+    )
+
+    all_rows = []
+    for ws in workspaces:
+        ws_id = str(ws["id"])
+        ws_name = ws["name"]
+        studios = client.list_studios(ws_id)
+        logger.info(f"Workspace {ws_name}: {len(studios)} studios")
+        for studio in studios:
+            checkpoints = client.studio_checkpoints(studio.session_id, ws_id)
+            rows = extract_studio_session_metrics(
+                studio, checkpoints, org_name=org_name, workspace_name=ws_name
+            )
+            all_rows.extend(rows)
+
+    if not all_rows:
+        logger.warning("No Studios session data collected")
+        print("No Studios session data collected. Check filters or date range.")
+        return
+
+    df = pd.DataFrame(all_rows)
+    # Filter by date range on checkpoint session_start
+    df["_start"] = pd.to_datetime(df["session_start"], utc=True)
+    df = df[(df["_start"] >= pd.Timestamp(min_dt, tz="UTC")) &
+            (df["_start"] <= pd.Timestamp(max_dt, tz="UTC"))].drop(columns=["_start"])
+    df.to_csv(output, index=False)
+    logger.info(f"Studios metrics saved to {output}")
+    _print_studios_summary(df)
+    if summarize:
+        summarize_studios_by_user_month(df, output)

@@ -2,7 +2,7 @@ import pandas as pd
 import pytest
 from typer.testing import CliRunner
 
-from seqera_workflow_metrics.cli import app, summarize_by_user_month_workspace
+from seqera_workflow_metrics.cli import app, studios_app, summarize_by_user_month_workspace
 
 runner = CliRunner()
 
@@ -115,3 +115,17 @@ class TestSummarizeByUserMonthWorkspace:
         summarize_by_user_month_workspace(df, out)
 
         assert (tmp_path / "metrics_user_summary").exists()
+
+
+class TestStudiosCliSmoke:
+    def test_help_exits_zero(self):
+        runner = CliRunner()
+        result = runner.invoke(studios_app, ["--help"])
+        assert result.exit_code == 0
+        assert "Studios" in result.output or "studios" in result.output.lower()
+
+    def test_missing_token_exits_nonzero(self, monkeypatch):
+        monkeypatch.delenv("TOWER_ACCESS_TOKEN", raising=False)
+        runner = CliRunner()
+        result = runner.invoke(studios_app, ["--org-name", "Org", "--from", "2026-01-01"])
+        assert result.exit_code != 0
