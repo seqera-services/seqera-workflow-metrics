@@ -103,3 +103,19 @@ class APIClient:
         params = {"workspaceId": workspace_id}
         all_tasks = self._paginate(f"workflow/{workflow_id}/tasks", params, "tasks", "total")
         return {"tasks": all_tasks, "total": len(all_tasks)}
+
+    def list_studios(self, workspace_id: str) -> list["StudioRecord"]:
+        from seqera_workflow_metrics.studios.models import StudioRecord
+        items = self._paginate("studios", {"workspaceId": workspace_id}, "studios", "totalSize")
+        return [StudioRecord.model_validate(item) for item in items]
+
+    def studio_checkpoints(self, session_id: str, workspace_id: str) -> list["CheckpointRecord"]:
+        from seqera_workflow_metrics.studios.models import CheckpointRecord
+        # Uses _paginate because checkpoints can accumulate across many restarts.
+        items = self._paginate(
+            f"studios/{session_id}/checkpoints",
+            {"workspaceId": workspace_id},
+            "checkpoints",
+            "totalSize",
+        )
+        return [CheckpointRecord.model_validate(cp) for cp in items]
