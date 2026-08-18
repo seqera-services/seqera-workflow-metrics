@@ -22,7 +22,7 @@ def extract_studio_session_metrics(
             logger.debug(f"Skipping in-progress checkpoint {cp.checkpoint_id} for studio {studio.session_id}")
             continue
         runtime_hours = cp.runtime_hours  # guaranteed non-None when is_complete
-        cpu_hours = 0.0 if studio.cpu_unresolved else studio.cpu * runtime_hours
+        cpu_hours = 0.0 if studio.cpu_unresolved else (studio.cpu * runtime_hours if runtime_hours is not None else 0.0)
         month = cp.date_created.strftime("%Y-%m")
         rows.append({
             "studio_id": studio.session_id,

@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.3.0] - 2026-08-18
+
+### Added
+- `studios` subcommand: collects per-session CPU hours for Data Studios using checkpoint history
+- `seqera-platform-metrics` entry point: multi-command CLI (`workflows` + `studios` subcommands)
+- `seqera-studios-metrics` entry point: standalone studios command
+- Pydantic v2 models for Studios API data (`StudioRecord`, `CheckpointRecord`)
+- `--summarize` flag for studios: writes `<output>_user_summary.csv` grouped by user/month/workspace
+
+### Notes
+- Studios CPU hours are an **approximation**: `cpu_requested × runtime_hours`. Sessions with `cpu=0` (CE default) show `cpu_unresolved=True` and `cpu_hours=0` — runtime is still recorded.
+- `seqera-workflow-metrics` entry point preserved as backwards-compatible alias for the `workflows` subcommand.
+
 ## [0.2.0] - 2026-08-10
 
 ### Added
