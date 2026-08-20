@@ -1,6 +1,9 @@
-# Seqera Workflow Metrics
+# Seqera Platform Metrics
 
-A command-line tool for collecting and analyzing workflow metrics from [Seqera Platform](https://seqera.io). It queries the Platform API to retrieve per-task resource usage, computes CPU hours, and writes a structured CSV report suitable for downstream analysis or cost attribution.
+A command-line tool for collecting and analyzing resource metrics from [Seqera Platform](https://seqera.io). It covers two metric types:
+
+- **Workflows**: queries per-task resource usage and computes CPU hours from task-level data
+- **Studios**: estimates CPU hours from Data Studios sessions using checkpoint history as a proxy for session duration
 
 ---
 
@@ -54,21 +57,48 @@ export TOWER_API_ENDPOINT="https://your-platform-host/api"  # optional
 
 The tool calls the following Seqera Platform REST API endpoints:
 
-| Endpoint                             | Purpose                                 |
-|--------------------------------------|-----------------------------------------|
-| `GET /orgs`                          | List organizations                      |
-| `GET /orgs/{orgId}/workspaces`       | List workspaces in an organization      |
-| `GET /workflow`                      | List workflows (with date/status filter)|
-| `GET /workflow/{workflowId}`         | Retrieve workflow details and progress  |
-| `GET /workflow/{workflowId}/tasks`   | Retrieve per-task resource data         |
+| Endpoint                                        | Purpose                                  |
+|-------------------------------------------------|------------------------------------------|
+| `GET /orgs`                                     | List organizations                       |
+| `GET /orgs/{orgId}/workspaces`                  | List workspaces in an organization       |
+| `GET /workflow`                                 | List workflows (with date/status filter) |
+| `GET /workflow/{workflowId}`                    | Retrieve workflow details and progress   |
+| `GET /workflow/{workflowId}/tasks`              | Retrieve per-task resource data          |
+| `GET /studios`                                  | List Studios and their current config    |
+| `GET /studios/{sessionId}/checkpoints`          | List checkpoints for a Studio session    |
 
 All paginated endpoints are handled automatically.
 
 ---
 
-## Modes of Operation
+## Entry Points
 
-### Mode 1: Organization-based (date range)
+The package installs three CLI commands:
+
+| Command                    | Description                                                                         |
+|----------------------------|-------------------------------------------------------------------------------------|
+| `seqera-platform-metrics`  | Multi-command CLI — use `workflows` or `studios` subcommands                        |
+| `seqera-workflow-metrics`  | Standalone entry point for the workflows command (backwards compatible)             |
+| `seqera-studios-metrics`   | Standalone entry point for the studios command                                      |
+
+Each standalone command is wired directly to the same underlying function as its subcommand equivalent. They accept the same options but do **not** take a subcommand token — `seqera-workflow-metrics workflows ...` would fail.
+
+```bash
+# These pairs are equivalent:
+seqera-platform-metrics workflows --org-name "MyOrg" --from 2024-01-01
+seqera-workflow-metrics --org-name "MyOrg" --from 2024-01-01
+
+seqera-platform-metrics studios --org-name "MyOrg" --from 2024-01-01
+seqera-studios-metrics --org-name "MyOrg" --from 2024-01-01
+```
+
+---
+
+## Workflows
+
+### Modes of Operation
+
+#### Mode 1: Organization-based (date range)
 
 Collects metrics for all workflows in an organization within a date window. Iterates across all workspaces automatically.
 
@@ -81,7 +111,7 @@ seqera-workflow-metrics \
 
 Optional filters: `--pipeline`, `--repository`, `--status`, `--workspace-id`.
 
-### Mode 2: Specific workflow IDs
+#### Mode 2: Specific workflow IDs
 
 Collects metrics for a known list of workflow IDs within a specific workspace.
 
@@ -93,7 +123,7 @@ seqera-workflow-metrics \
 
 Workflow IDs can be comma-separated or space-separated.
 
-### Mode 3: Local file input (offline analysis)
+#### Mode 3: Local file input (offline analysis)
 
 Processes pre-downloaded workflow and task JSON files without making API calls. Useful for offline analysis or CI testing.
 
@@ -107,7 +137,7 @@ The JSON files should match the schema returned by `GET /workflow/{id}` and `GET
 
 ---
 
-## Command Line Options
+### Command Line Options
 
 Run `seqera-workflow-metrics --help` for the full reference. Key options:
 
@@ -133,7 +163,7 @@ Run `seqera-workflow-metrics --help` for the full reference. Key options:
 
 ---
 
-## Output
+## Workflows output
 
 ### Console summary
 
@@ -211,6 +241,98 @@ Metrics are written to `workflow_metrics.csv` (or the path given by `--output`).
 | `tasks_ignored`               | Count of tasks with `IGNORED` status                                     |
 | `organization_name`           | Platform organization name                                               |
 | `workspace_name`              | Platform workspace name                                                  |
+
+---
+
+## Studios
+
+Collects approximate CPU hours for Data Studios sessions. Because the Platform API does not expose session history, this uses checkpoint timestamps as a proxy for session duration and the studio's current CPU configuration as the CPU count.
+
+Requires `TOWER_ACCESS_TOKEN` to be set (see [Configuration](#configuration)). For self-hosted Platform instances, also set `TOWER_API_ENDPOINT`. The Studios API endpoints (`GET /studios`, `GET /studios/{sessionId}/checkpoints`) were introduced in Platform v25.3 — earlier versions will return a 404 for these endpoints.
+
+```bash
+seqera-studios-metrics \
+  --org-name "MyOrg" \
+  --from 2024-01-01 \
+  --to 2024-03-31
+
+# or with the multi-command entry point:
+seqera-platform-metrics studios \
+  --org-name "MyOrg" \
+  --from 2024-01-01 \
+  --to 2024-03-31
+```
+
+### Command Line Options
+
+Run `seqera-studios-metrics --help` for the full reference. Key options:
+
+| Option           | Short | Description                                                              |
+|------------------|-------|--------------------------------------------------------------------------|
+| `--org-name`     | `-o`  | Organization name (required)                                             |
+| `--from`         |       | Start date `YYYY-MM-DD` (required)                                       |
+| `--to`           |       | End date `YYYY-MM-DD` (defaults to today)                                |
+| `--workspace-id` | `-w`  | Filter to a specific workspace                                           |
+| `--output`       |       | Output CSV file path (default: `studios_metrics.csv`)                    |
+| `--summarize`    |       | Write an additional CSV grouped by user, month, and workspace            |
+| `--endpoint`     | `-e`  | Override API endpoint URL                                                |
+| `--verbose`      | `-v`  | Enable DEBUG-level logging                                               |
+
+### Studios CSV output
+
+| Column             | Description                                                                       |
+|--------------------|-----------------------------------------------------------------------------------|
+| `studio_id`        | Studio session ID                                                                 |
+| `studio_name`      | Studio display name                                                               |
+| `checkpoint_id`    | Checkpoint ID (one row per completed checkpoint)                                  |
+| `user_name`        | Platform user who created the studio                                              |
+| `workspace_name`   | Platform workspace name                                                           |
+| `organization_name`| Platform organization name                                                        |
+| `session_start`    | Checkpoint creation timestamp — used as session start proxy (ISO 8601)            |
+| `session_stop`     | Checkpoint saved timestamp — used as session stop proxy (ISO 8601)                |
+| `runtime_hours`    | Elapsed hours between `session_start` and `session_stop`                          |
+| `cpu_requested`    | CPU count from current studio configuration                                       |
+| `cpu_hours`        | `cpu_requested × runtime_hours` (0 when `cpu_unresolved=True`)                    |
+| `cpu_unresolved`   | `True` when `cpu_requested=0` (studio inherits CE default — CPU count unknown)    |
+| `month`            | Calendar month of session start (`YYYY-MM`)                                       |
+| `compute_env_id`   | Compute environment ID associated with the studio                                 |
+
+### Studios CPU hours: methodology and limitations
+
+Studios CPU hours are an **approximation**. The Platform API does not expose session history or runtime metering for studios on customer-managed compute environments. This tool uses the following heuristic:
+
+```
+cpu_hours ≈ cpu_requested × (checkpoint.dateSaved − checkpoint.dateCreated)
+```
+
+**Key caveats:**
+
+- **`cpu_requested` is the current config, not historical.** If a studio's CPU setting was changed after sessions ran, earlier sessions will be attributed the wrong CPU count. The value at collection time is used for all checkpoints of that studio.
+- **`cpu_requested = 0` means "inherit CE default."** These studios have `cpu_unresolved=True` and `cpu_hours=0` in the output — runtime is still recorded so totals can be partially computed.
+- **Checkpoints proxy sessions, not individual runs.** A checkpoint represents a saved environment state, not necessarily a discrete compute session. The timestamp delta is the best available approximation for time spent running.
+- **Not billing-accurate.** Actual cloud cost depends on the provisioned instance type, not the requested CPU count.
+- **Date filtering is on session start, not stop.** A checkpoint whose `dateCreated` falls outside `--from`/`--to` is excluded even if it completed within the window. Sessions that straddle a window boundary will be dropped rather than partially counted.
+
+These figures are suitable for relative comparisons and rough cost attribution across workspaces and users. They should not be treated as exact compute consumption.
+
+### Log file
+
+A `.out` log file is written alongside the CSV (e.g. `studios_metrics.out`). Use `--verbose` / `-v` to include DEBUG-level output.
+
+### Studios user summary CSV (`--summarize`)
+
+Pass `--summarize` to write a second CSV (e.g. `studios_metrics_user_summary.csv`) aggregating by user, month, and workspace:
+
+| Column               | Description                                                    |
+|----------------------|----------------------------------------------------------------|
+| `organization_name`  | Platform organization name                                     |
+| `workspace_name`     | Platform workspace name                                        |
+| `user_name`          | Platform user who created the studio                           |
+| `month`              | Calendar month (`YYYY-MM`)                                     |
+| `session_count`      | Number of completed checkpoint sessions in that group          |
+| `runtime_hours`      | Total runtime hours                                            |
+| `cpu_hours`          | Total estimated CPU hours                                      |
+| `unresolved_sessions`| Count of sessions where CPU could not be resolved (`cpu=0`)    |
 
 ---
 

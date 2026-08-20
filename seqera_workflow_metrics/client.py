@@ -112,10 +112,12 @@ class APIClient:
     def studio_checkpoints(self, session_id: str, workspace_id: str) -> list["CheckpointRecord"]:
         from seqera_workflow_metrics.studios.models import CheckpointRecord
         # Uses _paginate because checkpoints can accumulate across many restarts.
+        # The checkpoints endpoint enforces a max page size of 50.
         items = self._paginate(
             f"studios/{session_id}/checkpoints",
             {"workspaceId": workspace_id},
             "checkpoints",
             "totalSize",
+            max_per_page=50,
         )
         return [CheckpointRecord.model_validate(cp) for cp in items]
