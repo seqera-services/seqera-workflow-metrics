@@ -1,0 +1,4 @@
+organization_name,workspace_name,user_name,month,session_count,runtime_hours,cpu_hours,unresolved_sessions
+myorg,analysis,user-a,2026-08,3,7.25,29.0,0
+myorg,analysis,user-b,2026-08,2,4.833,38.667,0
+myorg,dev,user-c,2026-08,1,8.014,0.0,1
