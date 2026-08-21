@@ -290,9 +290,9 @@ Run `seqera-studios-metrics --help` for the full reference. Key options:
 | `organization_name`| Platform organization name                                                        |
 | `session_start`    | Checkpoint creation timestamp — used as session start proxy (ISO 8601)            |
 | `session_stop`     | Checkpoint saved timestamp — used as session stop proxy (ISO 8601)                |
-| `runtime_hours`    | Elapsed hours between `session_start` and `session_stop`                          |
+| `runtime_hours`    | Wall-clock duration of the session in hours (elapsed time from start to stop, regardless of CPU count) |
 | `cpu_requested`    | CPU count from current studio configuration                                       |
-| `cpu_hours`        | `cpu_requested × runtime_hours` (0 when `cpu_unresolved=True`)                    |
+| `cpu_hours`        | Estimated compute consumption: `cpu_requested × runtime_hours`. Two users who ran for the same duration on different instance sizes will have different CPU hours. 0 when `cpu_unresolved=True` |
 | `cpu_unresolved`   | `True` when `cpu_requested=0` (studio inherits CE default — CPU count unknown)    |
 | `month`            | Calendar month of session start (`YYYY-MM`)                                       |
 | `compute_env_id`   | Compute environment ID associated with the studio                                 |
@@ -330,8 +330,8 @@ Pass `--summarize` to write a second CSV (e.g. `studios_metrics_user_summary.csv
 | `user_name`          | Platform user who created the studio                           |
 | `month`              | Calendar month (`YYYY-MM`)                                     |
 | `session_count`      | Number of completed checkpoint sessions in that group          |
-| `runtime_hours`      | Total runtime hours                                            |
-| `cpu_hours`          | Total estimated CPU hours                                      |
+| `runtime_hours`      | Total wall-clock hours across all sessions in the group        |
+| `cpu_hours`          | Total estimated CPU hours (`cpu_requested × runtime_hours` per session) |
 | `unresolved_sessions`| Count of sessions where CPU could not be resolved (`cpu=0`)    |
 
 ---
