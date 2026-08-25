@@ -7,7 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 ## [0.3.0] - 2026-08-18
 
 ### Added
-- `studios` subcommand: estimates CPU hours for Data Studios sessions using a checkpoint-based heuristic
+- `studios` subcommand: estimates CPU hours for Studios sessions using a checkpoint-based heuristic
 - `seqera-platform-metrics` entry point: multi-command CLI (`workflows` + `studios` subcommands)
 - `seqera-studios-metrics` entry point: standalone studios command
 - Pydantic v2 models for Studios API data (`StudioRecord`, `CheckpointRecord`)

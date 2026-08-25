@@ -3,7 +3,7 @@
 A command-line tool for collecting and analyzing resource metrics from [Seqera Platform](https://seqera.io). It covers two metric types:
 
 - **Workflows**: queries per-task resource usage and computes CPU hours from task-level data
-- **Studios**: estimates CPU hours from Data Studios sessions using checkpoint history as a proxy for session duration
+- **Studios**: estimates CPU hours from Studios sessions using checkpoint history as a proxy for session duration
 
 ---
 
@@ -246,7 +246,7 @@ Metrics are written to `workflow_metrics.csv` (or the path given by `--output`).
 
 ## Studios
 
-Collects approximate CPU hours for Data Studios sessions. Because the Platform API does not expose session history, this uses checkpoint timestamps as a proxy for session duration and the studio's current CPU configuration as the CPU count.
+Collects approximate CPU hours for Studios sessions. Because the Platform API does not expose session history, this uses checkpoint timestamps as a proxy for session duration and the studio's current CPU configuration as the CPU count.
 
 Requires `TOWER_ACCESS_TOKEN` to be set (see [Configuration](#configuration)). For self-hosted Platform instances, also set `TOWER_API_ENDPOINT`. The Studios API endpoints (`GET /studios`, `GET /studios/{sessionId}/checkpoints`) were introduced in Platform v25.3 — earlier versions will return a 404 for these endpoints.
 
