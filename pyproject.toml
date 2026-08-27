@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "seqera-workflow-metrics"
-version = "0.2.0"
+version = "0.3.0"
 description = "Collect and analyze workflow metrics from Seqera Platform"
 requires-python = ">=3.10"
 license = "Apache-2.0"
@@ -12,6 +12,7 @@ dependencies = [
     "requests>=2.28",
     "pandas>=1.5",
     "typer>=0.9",
+    "pydantic>=2.0",
 ]
 
 [project.optional-dependencies]
@@ -26,7 +27,9 @@ dev = [
 ]
 
 [project.scripts]
-seqera-workflow-metrics = "seqera_workflow_metrics.cli:app"
+seqera-workflow-metrics = "seqera_workflow_metrics.cli:workflows_app"
+seqera-studios-metrics = "seqera_workflow_metrics.cli:studios_app"
+seqera-platform-metrics = "seqera_workflow_metrics.cli:app"
 
 [tool.ruff]
 target-version = "py310"

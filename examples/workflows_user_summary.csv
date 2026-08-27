@@ -1,0 +1,10 @@
+organization_name,workspace_name,user_name,month,workflow_count,cpu_hours,tasks_succeeded,tasks_failed
+myorg,analysis,user-a,2026-08,12,14.831,694,5
+myorg,analysis,user-a,unknown,2,0.000,0,0
+myorg,analysis,user-b,2026-08,8,10.722,399,2
+myorg,analysis,user-c,2026-08,5,1.440,89,0
+myorg,data-ingestion,user-b,2026-08,39,0.002,69,4
+myorg,data-ingestion,user-c,2026-08,44,1360.709,12478,53
+myorg,data-ingestion,user-c,unknown,1,0.000,0,0
+myorg,ci,user-a,2026-08,277,0.720,2488,140
+myorg,ci,user-a,unknown,9,0.000,0,0
